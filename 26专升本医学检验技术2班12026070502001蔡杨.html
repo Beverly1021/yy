@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>嗜酸性粒细胞 3D 模型</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b1020; overflow: hidden; }
+  #tip {
+    position: fixed; left: 12px; bottom: 12px;
+    color: #cfd8ff; font: 14px/1.4 system-ui, sans-serif;
+    background: rgba(0,0,0,.35); padding: 6px 10px; border-radius: 8px;
+  }
+</style>
+</head>
+<body>
+<div id="tip">鼠标拖动旋转 · 滚轮缩放 · 嗜酸性粒细胞 Eosinophil</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(
+  45,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  100
+);
+camera.position.set(0, 0, 6);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+document.body.appendChild(renderer.domElement);
+
+// 灯光
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+const dir = new THREE.DirectionalLight(0xffffff, 1.0);
+dir.position.set(5, 6, 7);
+scene.add(dir);
+const dir2 = new THREE.DirectionalLight(0xffd9b3, 0.5);
+dir2.position.set(-6, -4, -5);
+scene.add(dir2);
+
+// 细胞组
+const cell = new THREE.Group();
+scene.add(cell);
+
+// 胞质（半透明淡橙）
+const cytoplasm = new THREE.Mesh(
+  new THREE.SphereGeometry(2, 64, 64),
+  new THREE.MeshPhysicalMaterial({
+    color: 0xffb877,
+    transparent: true,
+    opacity: 0.35,
+    roughness: 0.4,
+    transmission: 0.6,
+    thickness: 1.5
+  })
+);
+cell.add(cytoplasm);
+
+// 嗜酸性颗粒（橙色小圆点）
+const granuleGeo = new THREE.SphereGeometry(0.12, 16, 16);
+const granuleMat = new THREE.MeshStandardMaterial({
+  color: 0xff7a1a,
+  roughness: 0.35,
+  emissive: 0x5a1e00,
+  emissiveIntensity: 0.25
+});
+
+const granuleCount = 260;
+for (let i = 0; i < granuleCount; i++) {
+  // 在球内随机分布
+  const r = 2 * Math.cbrt(Math.random()) * 0.92;
+  const theta = Math.random() * Math.PI * 2;
+  const phi = Math.acos(2 * Math.random() - 1);
+
+  const x = r * Math.sin(phi) * Math.cos(theta);
+  const y = r * Math.sin(phi) * Math.sin(theta);
+  const z = r * Math.cos(phi);
+
+  const g = new THREE.Mesh(granuleGeo, granuleMat);
+  g.position.set(x, y, z);
+  const s = 0.7 + Math.random() * 0.8;
+  g.scale.setScalar(s);
+  cell.add(g);
+}
+
+// 细胞核（双叶 / 分叶核）
+const nucleusMat = new THREE.MeshStandardMaterial({
+  color: 0x7a3b8f,
+  roughness: 0.5,
+  metalness: 0.05
+});
+
+function lobe(x, y, z, rx, ry, rz, sx, sy, sz) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 48), nucleusMat);
+  m.position.set(x, y, z);
+  m.rotation.set(rx, ry, rz);
+  m.scale.set(sx, sy, sz);
+  return m;
+}
+
+cell.add(lobe(-0.55, 0.25, 0, 0, 0, 0, 0.95, 0.8, 0.8));
+cell.add(lobe(0.55, -0.2, 0.1, 0, 0.6, 0, 0.95, 0.8, 0.8));
+
+// 核叶之间细连接
+const bridge = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.18, 0.18, 1.1, 24),
+  nucleusMat
+);
+bridge.position.set(0, 0.02, 0.05);
+bridge.rotation.z = Math.PI / 4;
+cell.add(bridge);
+
+// 交互控制
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 1.2;
+
+// 自适应窗口
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>
